@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EEG Emotion Recognition | Hybrid CNN-BiLSTM-Attention</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <!-- Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-group">
+        <div class="pulse-indicator"></div>
+        <div>
+          <h1 class="brand-title">NeuroAffect AI</h1>
+          <p class="brand-subtitle">EEG Emotion Recognition & Affective Computing System</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-purple">32 EEG Channels</span>
+        <span class="badge badge-blue">CNN-BiLSTM-Attention</span>
+        <span class="badge badge-green">DEAP Dataset</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    <!-- Hero / Architecture Overview -->
+    <section class="hero-card">
+      <div class="hero-text">
+        <h2 class="hero-title">Continuous Multi-Output Emotion Recognition from 32-Channel EEG</h2>
+        <p class="hero-desc">
+          Recognizing human affective states along four fundamental continuous dimensions: <strong>Valence, Arousal,
+            Dominance, and Liking</strong> on a 1.0–9.0 scale using a hybrid deep learning architecture that synergizes
+          spatial convolutional filtering, bidirectional temporal memory, and temporal self-attention.
+        </p>
+      </div>
+      <div class="hero-pipeline">
+        <div class="step-pill"><span>1</span> 32-Ch Raw EEG</div>
+        <div class="step-arrow">→</div>
+        <div class="step-pill"><span>2</span> 4-45Hz Filter & Z-Score</div>
+        <div class="step-arrow">→</div>
+        <div class="step-pill"><span>3</span> 1D CNN</div>
+        <div class="step-arrow">→</div>
+        <div class="step-pill"><span>4</span> BiLSTM</div>
+        <div class="step-arrow">→</div>
+        <div class="step-pill"><span>5</span> Attention</div>
+        <div class="step-arrow">→</div>
+        <div class="step-pill step-pill-active"><span>6</span> [V, A, D, L]</div>
+      </div>
+    </section>
+
+    <!-- Two Column Grid: Inputs & Results -->
+    <div class="layout-grid">
+      <!-- Left Column: Input Options -->
+      <div class="input-panel card">
+        <h3 class="card-title">1. EEG Input Selection</h3>
+        <p class="card-caption">Select a preloaded DEAP participant trial or upload a preprocessed 32-channel EEG
+          signal.</p>
+
+        <!-- Mode Toggle -->
+        <div class="toggle-group">
+          <button id="btn-mode-sample" class="toggle-btn active">Preloaded Sample</button>
+          <button id="btn-mode-upload" class="toggle-btn">Upload Custom File</button>
+        </div>
+
+        <!-- Preloaded Sample Form -->
+        <div id="sample-input-section" class="form-section">
+          <div class="form-group">
+            <label for="sample-select">Participant Trial:</label>
+            <select id="sample-select" class="form-control">
+              <option value="s01.dat">s01.dat (Synthetic Demo - Participant 1)</option>
+              <option value="s23.dat">s23.dat (Synthetic Demo - Participant 23)</option>
+              <option value="s28.dat">s28.dat (Synthetic Demo - Participant 28)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="trial-index">Trial Index (0 - 3):</label>
+            <input type="number" id="trial-index" class="form-control" value="0" min="0" max="39">
+          </div>
+        </div>
+
+        <!-- Custom Upload Form -->
+        <div id="upload-input-section" class="form-section hidden">
+          <div class="drop-zone" id="drop-zone">
+            <div class="drop-icon">📁</div>
+            <p class="drop-text">Drag & drop <code>.dat</code> or <code>.npy</code> EEG file here</p>
+            <span class="drop-subtext">or click to browse filesystem</span>
+            <input type="file" id="file-input" accept=".dat,.npy" class="file-hidden">
+          </div>
+          <div id="file-info" class="file-info-bar hidden">
+            <span id="selected-filename">sample.dat</span>
+            <button id="btn-remove-file" class="btn-clear">×</button>
+          </div>
+          <div class="notice-box">
+            <strong>Format Note:</strong> Uploaded arrays must contain at least <strong>32 EEG channels</strong> and
+            &ge; 256 time samples (sampled at 128 Hz) conforming to DEAP specifications.
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <button id="btn-predict" class="btn-primary">
+          <span class="btn-text">Run Affective Inference</span>
+          <span class="spinner hidden" id="spinner"></span>
+        </button>
+
+        <div id="error-message" class="error-banner hidden"></div>
+      </div>
+
+      <!-- Right Column: Prediction Results Dashboard -->
+      <div class="results-panel card">
+        <div class="results-header">
+          <div>
+            <h3 class="card-title">2. Affective Prediction Dashboard</h3>
+            <p class="card-caption">Continuous ratings on a 1.0 to 9.0 affective scale</p>
+          </div>
+          <div id="circumplex-badge" class="quadrant-badge">
+            <span id="badge-quadrant">Awaiting Analysis</span>
+          </div>
+        </div>
+
+        <!-- Dominant Emotional State Banner -->
+        <div class="emotion-state-card" id="emotion-banner">
+          <div class="state-label">Circumplex Affective State:</div>
+          <div class="state-title" id="state-title">Select an EEG trial and click Predict</div>
+          <div class="state-meta" id="state-meta">Windows analyzed: — | In-band 4-45 Hz</div>
+        </div>
+
+        <!-- 4 Metric Cards Grid -->
+        <div class="metrics-grid">
+          <!-- Valence -->
+          <div class="metric-card" style="--accent-color: #2563eb;">
+            <div class="metric-header">
+              <span class="metric-name">Valence</span>
+              <span class="metric-tag">Pleasantness</span>
+            </div>
+            <div class="metric-value" id="val-valence">5.00</div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="fill-valence" style="width: 50%;"></div>
+            </div>
+            <div class="metric-scale"><span>1 (Negative)</span><span>9 (Positive)</span></div>
+          </div>
+
+          <!-- Arousal -->
+          <div class="metric-card" style="--accent-color: #f97316;">
+            <div class="metric-header">
+              <span class="metric-name">Arousal</span>
+              <span class="metric-tag">Intensity</span>
+            </div>
+            <div class="metric-value" id="val-arousal">5.00</div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="fill-arousal" style="width: 50%;"></div>
+            </div>
+            <div class="metric-scale"><span>1 (Calm)</span><span>9 (Excited)</span></div>
+          </div>
+
+          <!-- Dominance -->
+          <div class="metric-card" style="--accent-color: #16a34a;">
+            <div class="metric-header">
+              <span class="metric-name">Dominance</span>
+              <span class="metric-tag">Control</span>
+            </div>
+            <div class="metric-value" id="val-dominance">5.00</div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="fill-dominance" style="width: 50%;"></div>
+            </div>
+            <div class="metric-scale"><span>1 (Submissive)</span><span>9 (Empowered)</span></div>
+          </div>
+
+          <!-- Liking -->
+          <div class="metric-card" style="--accent-color: #dc2626;">
+            <div class="metric-header">
+              <span class="metric-name">Liking</span>
+              <span class="metric-tag">Preference</span>
+            </div>
+            <div class="metric-value" id="val-liking">5.00</div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="fill-liking" style="width: 50%;"></div>
+            </div>
+            <div class="metric-scale"><span>1 (Dislike)</span><span>9 (Like)</span></div>
+          </div>
+        </div>
+
+        <!-- 2D Circumplex Plot Canvas -->
+        <div class="chart-container">
+          <h4 class="chart-title">Russell's Circumplex Affective Space (Valence vs. Arousal)</h4>
+          <canvas id="circumplex-canvas" width="600" height="340"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Educational Affective Guide -->
+    <section class="guide-section card">
+      <h3 class="card-title">Affective Dimension Reference & Neurophysiological Significance</h3>
+      <div class="guide-grid">
+        <div class="guide-item">
+          <h4>Valence (Hedonic Tone)</h4>
+          <p>Indicates whether the emotional experience is intrinsically pleasant or unpleasant. Neurobiologically
+            grounded in Frontal Alpha Asymmetry (FAA): greater left-frontal cortical activity reflects approach
+            motivation and positive valence, whereas right-frontal dominance signifies withdrawal.</p>
+        </div>
+        <div class="guide-item">
+          <h4>Arousal (Neurophysiological Activation)</h4>
+          <p>Reflects bodily and mental activation from deep calmness/sleep to high excitement or panic. Correlates with
+            cortical beta rhythm (14–30 Hz) power and event-related desynchronization across central and parietal
+            electrodes.</p>
+        </div>
+        <div class="guide-item">
+          <h4>Dominance (Sense of Agency)</h4>
+          <p>Measures whether the subject feels empowered and in control of the situation versus submissive,
+            overwhelmed, or helpless. Strongly tied to fronto-temporal power distributions.</p>
+        </div>
+        <div class="guide-item">
+          <h4>Liking (Aesthetic Preference)</h4>
+          <p>Reflects cognitive appraisal and personal appreciation of the auditory/visual music stimulus, modulated by
+            reward circuitry and bilateral fronto-temporal coherence.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Academic and Non-Diagnostic Disclaimer -->
+    <footer class="disclaimer-banner">
+      <strong>Academic & Research Disclaimer:</strong> This system is developed exclusively as a major B.Tech
+      engineering project in affective computing and biomedical signal processing. Predictions represent statistical
+      machine learning estimates derived from the DEAP dataset and do not constitute clinical diagnosis, psychiatric
+      assessment, or medical advice.
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+
+</html>

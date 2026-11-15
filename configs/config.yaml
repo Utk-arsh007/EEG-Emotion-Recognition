@@ -1,0 +1,138 @@
+# ==============================================================================
+# Configuration File for EEG Emotion Recognition Project
+# Dataset: DEAP (Database for Emotion Analysis using Physiological Signals)
+# Architecture: Hybrid CNN-BiLSTM with Attention
+# ==============================================================================
+
+project:
+  name: "EEG-Emotion-Recognition"
+  version: "1.0.0"
+  random_seed: 42
+
+paths:
+  # Local default paths
+  local_raw_dir: "./data/raw"
+  local_processed_dir: "./data/processed"
+  sample_data_dir: "./sample_data"
+  checkpoint_dir: "./models/checkpoints"
+  results_dir: "./results"
+  reports_dir: "./reports"
+  
+  # Google Colab / Google Drive paths (User configurable)
+  colab_drive_root: "/content/drive/MyDrive"
+  colab_raw_dir: "/content/drive/MyDrive/DEAP/data_preprocessed_python"
+  colab_processed_dir: "/content/drive/MyDrive/DEAP/processed"
+  colab_checkpoint_dir: "/content/drive/MyDrive/DEAP/checkpoints"
+
+dataset:
+  num_participants: 32
+  trials_per_participant: 40
+  total_channels: 40
+  eeg_channels_count: 32
+  sampling_rate: 128  # Hz
+  raw_samples_per_trial: 8064  # 63 seconds * 128 Hz
+  baseline_seconds: 3.0       # 384 samples
+  trial_seconds: 60.0         # 7680 samples
+  
+  # Standard 32 10-20 EEG electrode positions used in DEAP
+  channel_names:
+    - "Fp1"
+    - "AF3"
+    - "F3"
+    - "F7"
+    - "FC5"
+    - "FC1"
+    - "C3"
+    - "T7"
+    - "CP5"
+    - "CP1"
+    - "P3"
+    - "P7"
+    - "PO3"
+    - "O1"
+    - "Oz"
+    - "Pz"
+    - "Fp2"
+    - "AF4"
+    - "Fz"
+    - "F4"
+    - "F8"
+    - "FC6"
+    - "FC2"
+    - "Cz"
+    - "C4"
+    - "T8"
+    - "CP6"
+    - "CP2"
+    - "P4"
+    - "P8"
+    - "PO4"
+    - "O2"
+
+  # Target affective dimensions
+  target_names:
+    - "Valence"
+    - "Arousal"
+    - "Dominance"
+    - "Liking"
+  target_min: 1.0
+  target_max: 9.0
+
+preprocessing:
+  baseline_strategy: "subtract"  # Options: 'subtract', 'discard', 'none'
+  bandpass_filter:
+    enabled: true
+    order: 4
+    lowcut: 4.0   # Hz (captures theta: 4-8Hz, alpha: 8-13Hz, beta: 14-30Hz, gamma: 30-45Hz)
+    highcut: 45.0  # Hz
+  windowing:
+    window_size_seconds: 2.0    # 256 samples per window
+    window_stride_seconds: 1.0  # 128 samples stride (50% overlap)
+  normalization:
+    scaler_type: "standard"     # Options: 'standard' (z-score), 'minmax'
+    clip_outliers_sigma: 5.0    # Clip values beyond 5 standard deviations
+
+data_split:
+  # Strictly subject-independent split (zero data leakage)
+  # 22 Train (70%), 5 Val (15%), 5 Test (15%)
+  train_participants: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+  val_participants: [23, 24, 25, 26, 27]
+  test_participants: [28, 29, 30, 31, 32]
+
+models:
+  common:
+    input_shape: [256, 32]  # [timesteps, channels]
+    num_outputs: 4
+    dropout_rate: 0.3
+    l2_reg: 0.0001
+  
+  cnn:
+    filters: [32, 64, 128]
+    kernel_sizes: [5, 3, 3]
+    pool_sizes: [2, 2, 2]
+    dense_units: [128, 64]
+  
+  bilstm:
+    lstm_units: [64, 64]
+    dense_units: [128, 64]
+  
+  hybrid:
+    conv_filters: [32, 64]
+    conv_kernels: [5, 3]
+    pool_sizes: [2, 2]
+    bilstm_units: [64, 32]
+    attention_dim: 64
+    dense_units: [64, 32]
+
+training:
+  batch_size: 64
+  epochs: 50
+  learning_rate: 0.001
+  loss: "huber"  # Robust to EEG noise/outliers compared to pure MSE
+  huber_delta: 1.0
+  optimizer: "adam"
+  reduce_lr_patience: 4
+  reduce_lr_factor: 0.5
+  min_lr: 0.000001
+  early_stopping_patience: 10
+  use_mixed_precision: false  # T4 GPU supports fp16 if desired
